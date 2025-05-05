@@ -1,0 +1,8 @@
+# ignore avd generated files
+*.cfg
+# ignore vault secrets
+secrets.yml
+# ignore act files
+act/
+# ignore vault pw
+passwords.*

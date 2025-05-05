@@ -1,0 +1,67 @@
+---
+
+name: "Build and push fabric configs to CV"
+
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - 'tech-library/datacenter/host_vars/**'
+      - 'tech-library/datacenter/group_vars/**'
+
+jobs:
+  build-configs:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Ansible and AVD roles
+        run: |
+          pip install "pyavd[ansible]"
+          ansible-galaxy collection install arista.avd
+
+      - name: Build Fabric Configs
+        run: |
+          cd tech-library/datacenter/
+          make avd-build
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-fabric-artifact
+          path: tech-library/datacenter/intended/**
+          retention-days: 1
+
+  deploy-configs:
+    runs-on: self-hosted
+    needs: build-configs  # Ensures this job runs after the build-configs job
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-fabric-artifact  # Matches the name used in the upload step
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Ansible and AVD roles
+        run: |
+          pip install "pyavd[ansible]"
+          ansible-galaxy collection install arista.avd
+
+      - name: Deploy to CV
+        env:  # Set environment variables here
+          CV_SVC_TOKEN: ${{ secrets.CV_SVC_TOKEN }}
+          CV_WS_NAME: ${{ github.ref_name }}
+        run: |
+          cd tech-library/datacenter/
+          make avd-deploy

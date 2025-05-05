@@ -1,0 +1,85 @@
+name: Validate and Merge Network Configurations
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "The branch to validate (for inventory selection)"
+        required: true
+        default: "feature-branch"
+
+permissions:
+  issues: write  # Grant permissions to create GitHub issues
+  contents: write  # Allow creating pull requests
+  pull-requests: write
+
+jobs:
+  validate:
+    runs-on: self-hosted
+    env:
+      CV_SVC_TOKEN: ${{ secrets.CV_SVC_TOKEN }}
+      ANSIBLE_USERNAME: ${{ secrets.ANSIBLE_USERNAME }}
+      ANSIBLE_PASSWORD: ${{ secrets.ANSIBLE_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.environment }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Ansible and AVD roles
+        run: |
+          pip install "pyavd[ansible]"
+          ansible-galaxy collection install arista.avd
+      
+      - name: Rebuild structured config for validation
+        run: |
+          cd tech-library/datacenter
+          make avd-build
+
+      - name: Run AVD Validate State
+        run: |
+          cd tech-library/datacenter
+          make avd-validate
+
+      - name: Parse Validation Report
+        run: |
+          cd tech-library/datacenter/reports
+          if grep -q ",FAIL," FABRIC-state.csv; then
+            echo "Validation failures detected in FABRIC-state.csv:"
+            grep ",FAIL," FABRIC-state.csv
+            exit 1
+          else
+            echo "No validation failures detected."
+          fi
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: validate-fabric-artifact
+          path: tech-library/datacenter/reports/**
+          retention-days: 1
+
+      - name: Create GitHub Issue on Validation Failure
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd tech-library/datacenter/reports
+          echo "Validation failures detected in FABRIC-state.csv:" > issue_body.txt
+          grep ",FAIL," FABRIC-state.csv >> issue_body.txt
+          gh issue create --title "Validation Failure in ${{ github.event.inputs.environment }}" \
+                          --body-file issue_body.txt
+      
+      - name: Build and Deploy Configs on Failure
+        if: failure()
+        run: |
+          git fetch origin main
+          git checkout main
+          cd tech-library/datacenter
+          make avd-build
+          make avd-deploy-rcc
