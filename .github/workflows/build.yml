@@ -1,5 +1,4 @@
 ---
-
 name: "Build and push fabric configs to CV"
 
 on:
@@ -7,8 +6,8 @@ on:
     branches-ignore:
       - main
     paths:
-      - 'tech-library/datacenter/host_vars/**'
-      - 'tech-library/datacenter/group_vars/**'
+      - "tech-library/datacenter/host_vars/**"
+      - "tech-library/datacenter/group_vars/**"
 
 jobs:
   build-configs:
@@ -20,7 +19,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install Ansible and AVD roles
         run: |
@@ -41,27 +40,34 @@ jobs:
 
   deploy-configs:
     runs-on: self-hosted
-    needs: build-configs  # Ensures this job runs after the build-configs job
+    needs: build-configs # Ensures this job runs after the build-configs job
     steps:
       - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
-          name: build-fabric-artifact  # Matches the name used in the upload step
+          name: build-fabric-artifact # Matches the name used in the upload step
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install Ansible and AVD roles
         run: |
           pip install "pyavd[ansible]"
           ansible-galaxy collection install arista.avd
 
-      - name: Deploy to CV
-        env:  # Set environment variables here
-          CV_SVC_TOKEN: ${{ secrets.CV_SVC_TOKEN }}
-          CV_WS_NAME: ${{ github.ref_name }}
+      # - name: Deploy to CV
+      #   env: # Set environment variables here
+      #     CV_SVC_TOKEN: ${{ secrets.CV_SVC_TOKEN }}
+      #     CV_WS_NAME: ${{ github.ref_name }}
+      #   run: |
+      #     cd tech-library/datacenter/
+      #     make avd-deploy
+      - name: Deploy to Devices via eAPI
+        env: # Set environment variables here
+          ANSIBLE_USERNAME: ${{ secrets.ANSIBLE_USERNAME }}
+          ANSIBLE_PASSWORD: ${{ secrets.ANSIBLE_PASSWORD }}
         run: |
           cd tech-library/datacenter/
-          make avd-deploy
+          make avd-deploy-eapi

@@ -31,3 +31,7 @@ avd-server-build:
 .PHONY: avd-server-deploy
 avd-server-deploy:
 	ansible-playbook playbooks/server-deploy-eapi.yml --tags deploy -i inventory.yml -e "target_hosts=SERVERS" 
+
+.PHONY: avd-deploy-eapi
+avd-deploy-eapi:
+	ansible-playbook playbooks/server-deploy_eapi.yml -i inventory.yml
