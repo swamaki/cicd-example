@@ -56,7 +56,7 @@ l3leaf:
     vtep_loopback_ipv4_pool: 2.2.1.0/24 
     uplink_interfaces: ['Ethernet1', 'Ethernet2', 'Ethernet3', 'Ethernet4'] 
     uplink_switches: ['A-SPINE1', 'A-SPINE2', 'A-SPINE3', 'A-SPINE4']
-    uplink_ipv4_pool: 192.168.1.0/24
+    uplink_ipv4_pool: 10.255.255.0/24
     mlag_interfaces: ['Ethernet5', 'Ethernet6']
     mlag_peer_vlan_structured_config: 
       mtu: 1500 
